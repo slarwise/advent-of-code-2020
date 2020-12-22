@@ -1,13 +1,30 @@
 -module(day_4).
 
 -export([
-         first/0
+         first/0,
+         second/0,
+         is_valid_value/2
         ]).
 
 first() ->
     % Input = read_input("simple-input"),
     Input = read_input("input"),
-    parse_passwords(Input).
+
+    Passports = parse_passports(Input),
+
+    ValidPassports = get_valid_passports(Passports),
+    length(ValidPassports).
+
+second() ->
+    % Input = read_input("simple-input-2"),
+    Input = read_input("input"),
+
+    Passports = parse_passports(Input),
+
+    ValidPassports = get_valid_passports_2(Passports),
+    io:format("~p~n", [ValidPassports]),
+    length(ValidPassports).
+
 
 read_input(Filename) ->
     {ok, Device} = file:open(Filename, [read]),
@@ -21,52 +38,105 @@ read_input(Device, Acc) ->
             read_input(Device, [string:trim(Line)|Acc])
     end.
 
-parse_passwords(Data) ->
-    lists:foldl(
-      fun(Line, Acc) ->
-              parse_passwords(Line, Acc)
-      end,
-      {sets:new(), 0}, Data).
+% Make a list of all passports of the form
+% [
+%   [{Key1, Val1}, {Key2, Val2}], ...,
+%   [{Key1, Val1}, {Key2, Val2}], ...,
+%   ...,
+% ]
+parse_passports(Input) ->
+    {CurrentData, Data} = lists:foldl(
+                            fun(Line, Acc) ->
+                                    parse_passports(Line, Acc)
+                            end,
+                            {[], []}, Input),
+    [CurrentData|Data].
 
-parse_passwords(Line, {CurrentKeys, ValidPasswords}) ->
+parse_passports(Line, {CurrentData, Data}) ->
     case Line of
         "" ->
-            MandatoryKeys = sets:from_list(["byr", "iyr", "eyr", "hgt", "hcl",
-                                            "ecl", "pid"]),
-            MandatoryKeysWithCid = sets:add_element("cid", MandatoryKeys),
-            io:format("MandatoryKeys: ~p~n", [MandatoryKeys]),
-            io:format("MandatoryKeysWithCid: ~p~n", [MandatoryKeysWithCid]),
-            HasValidKeys = (
-              (
-               sets:is_subset(CurrentKeys, MandatoryKeys) and
-               sets:is_subset(MandatoryKeys, CurrentKeys)
-              ) or
-              (
-               sets:is_subset(CurrentKeys, MandatoryKeysWithCid) and
-               sets:is_subset(MandatoryKeysWithCid, CurrentKeys)
-              )
-             ),
-            NewValidPasswords = case HasValidKeys of
-                                    true -> ValidPasswords + 1;
-                                    false -> ValidPasswords
-                                end,
-            % io:format("Current: ~p~n", [CurrentKeys]),
-            % io:format("NewValidPasswords: ~p~n", [NewValidPasswords]),
-            {sets:new(), NewValidPasswords};
+            {[], [CurrentData|Data]};
         _ ->
-            Keys = get_keys_in_line(Line),
-            {sets:union(CurrentKeys, Keys), ValidPasswords}
+            {lists:flatten([get_key_value_pairs(Line), CurrentData]), Data}
     end.
 
-get_keys_in_line(Line) ->
-    % Make sure there are no duplicates, actually better to use a list here
-    % since we need to check that a key is not present twice.
-    KVPairs = string:split(Line, " ", all),
-    Keys = lists:map(
-             fun(S) ->
-                     Split = string:split(S, ":", all),
-                     hd(Split)
-             end,
-             KVPairs
-            ),
-    sets:from_list(Keys).
+get_key_value_pairs(Line) ->
+    KeyValuePairs = string:split(Line, " ", all),
+    lists:map(
+      fun(KeyValuePair) ->
+              case length(string:split(KeyValuePair, ":")) of
+                  2 ->
+                      [Key, Value] = string:split(KeyValuePair, ":"),
+                      {Key, Value};
+                  1 -> [Key] = string:split(KeyValuePair, ":"),
+                       {Key, ""}
+              end
+      end,
+      KeyValuePairs).
+
+get_valid_passports(Passports) ->
+    lists:filter(fun(P) -> has_required_fields(P) end, Passports).
+
+has_required_fields(Passport) ->
+    {Keys, _Values} = lists:unzip(Passport),
+    MandatoryKeys = ["byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid"],
+    case lists_are_equal(Keys, MandatoryKeys) of
+        true ->
+            true;
+        false ->
+            MandatoryKeysWithCid = ["cid"|MandatoryKeys],
+            lists_are_equal(Keys, MandatoryKeysWithCid)
+    end.
+
+lists_are_equal(List1, List2) ->
+    lists:sort(List1) =:= lists:sort(List2).
+
+get_valid_passports_2(Passports) ->
+    lists:filter(
+      fun(P) ->
+              has_required_fields(P) and has_valid_values(P)
+      end,
+      Passports).
+
+has_valid_values(Passport) ->
+    lists:all(fun({Key, Value}) -> is_valid_value(Key, Value) end, Passport).
+
+is_valid_value(Key, Value) ->
+    case Key of
+        "byr" ->
+            {BirthYear, _} = string:to_integer(Value),
+            (1920 =< BirthYear) and (BirthYear =< 2002);
+        "iyr" ->
+            {IssueYear, _} = string:to_integer(Value),
+            (2010 =< IssueYear) and (IssueYear =< 2020);
+        "eyr" ->
+            {ExpirationYear, _} = string:to_integer(Value),
+            (2020 =< ExpirationYear) and (ExpirationYear =< 2030);
+        "hgt" ->
+            {Height, Unit} = string:to_integer(Value),
+            case Unit of
+                "cm" ->
+                    (150 =< Height) and (Height =< 193);
+                "in" ->
+                    (59 =< Height) and (Height =< 76);
+                _ ->
+                    false
+            end;
+        "hcl" ->
+            case re:run(Value, "^#[0-9a-f]{6,6}$", [{capture, none}]) of
+                match -> true;
+                nomatch -> false
+            end;
+        "ecl" ->
+            case re:run(Value, "amb|blu|brn|gry|grn|hzl|oth", [{capture, none}]) of
+                match -> true;
+                nomatch -> false
+            end;
+        "pid" ->
+            case re:run(Value, "^[0-9]{9,9}$", [{capture, none}]) of
+                match -> true;
+                nomatch -> false
+            end;
+        "cid" ->
+           true
+    end.

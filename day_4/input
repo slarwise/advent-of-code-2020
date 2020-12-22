@@ -49,7 +49,7 @@ iyr:1920 hgt:158in
 
 pid:023850020 hgt:163cm iyr:2017 byr:1966
 cid:145
-eclgrn eyr:2027 hcl:#ceb3a1
+ecl:grn eyr:2027 hcl:#ceb3a1
 
 hcl:z byr:2008 eyr:2020 ecl:#e810c9 hgt:76cm pid:0485860220
 
@@ -1144,4 +1144,4 @@ hgt:155cm eyr:2029
 ecl:gry
 byr:1973 iyr:2011
 pid:479606625 eyr:2028
-hcl:#888785 cid:108 hgt:160cm:
+hcl:#888785 cid:108 hgt:160cm
