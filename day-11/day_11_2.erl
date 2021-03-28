@@ -1,17 +1,15 @@
--module(day_11).
+-module(day_11_2).
 
 -export([
-    main/2,
-    get_neighbour_indices/2
+    main/1,
+    get_positions_in_direction/3
 ]).
 
-main(Part, Filename) ->
+main(Filename) ->
     Input = read_input(Filename),
     Layout = get_layout(Input),
-    case Part of
-        1 -> part1(Layout);
-        2 -> ok
-    end.
+    ConvergedLayout = simulate_until_convergence(Layout, []),
+    count_occupied_seats(ConvergedLayout).
 
 read_input(Filename) ->
     {ok, Binary} = file:read_file(Filename),
@@ -24,10 +22,6 @@ get_layout(Input) ->
       end,
       Input
      ).
-
-part1(Layout) ->
-    ConvergedLayout = simulate_until_convergence(Layout, []),
-    count_occupied_seats(ConvergedLayout).
 
 simulate_until_convergence(Layout, Layout) ->
     Layout;
@@ -43,13 +37,8 @@ simulate(Row, Layout, NewLayout) ->
     Elements = lists:nth(Row, Layout),
     NewElements = lists:map(
         fun(Col) ->
-            CurrentState = lists:nth(Col, Elements),
-            NeighbourIndices = get_neighbour_indices({Row, Col}, Layout),
-            NeighbourStates = get_elements(
-                NeighbourIndices,
-                Layout
-            ),
-            get_new_state(CurrentState, NeighbourStates)
+            CurrentState = lists:nth(Col, Elements)
+            % get_new_state(CurrentState, NeighbourStates)
         end,
         lists:seq(1, length(Elements))
     ),
@@ -66,6 +55,17 @@ get_elements(Indices, Layout) ->
         Indices
     ).
 
+get_row(Row, Layout) ->
+    lists:nth(Row, Layout).
+
+get_col(Col, Layout) ->
+    lists:map(
+        fun(Row) ->
+            lists:nth(Col, Row)
+        end,
+        Layout
+    ).
+
 get_state(46) -> floor;    % "."
 get_state(76) -> empty;    % "L"
 get_state(35) -> occupied. % "#"
@@ -78,28 +78,28 @@ get_states(Elements) ->
         Elements
     ).
 
-get_neighbour_indices({Row, Col}, Layout) ->
-    NRows = length(Layout),
-    NCols = length(hd(Layout)),
-    Rows =
-        case Row of
-            1 -> [1, 2];
-            NRows -> [Row - 1, Row];
-            _ -> [Row - 1, Row, Row + 1]
+% Returns {value, State} of the first found seat in the given Direction or
+% false if no seat was found.
+find_first_seat({Row, Col}, Layout, e) ->
+    lists:search(
+        fun
+            (empty) -> false;
+            (_) -> true
         end,
-    Cols =
-        case Col of
-            1 -> [1, 2];
-            NCols -> [Col - 1, Col];
-            _ -> [Col - 1, Col, Col + 1]
-        end,
-    Indices = [{R, C} || R <- Rows, C <- Cols],
-    lists:filter(
-        fun(Index) ->
-            Index =/= {Row, Col}
-        end,
-        Indices
+        lists:nthtail(Col, lists:nth(Row, Layout))
     ).
+
+get_positions_in_direction({Row, Col}, Layout, e) ->
+    lists:nthtail(Col, get_row(Row, Layout));
+get_positions_in_direction({Row, Col}, Layout, w) ->
+    lists:sublist(get_row(Row, Layout), Col-1);
+get_positions_in_direction({Row, Col}, Layout, s) ->
+    lists:nthtail(Row, get_col(Col, Layout));
+get_positions_in_direction({Row, Col}, Layout, n) ->
+    lists:sublist(get_col(Col, Layout), Row-1);
+% TODO
+get_positions_in_direction({Row, Col}, Layout, ne) ->
+    ok.
 
 get_new_state(floor, _NeighbourStates) ->
     floor;
