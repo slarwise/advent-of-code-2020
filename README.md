@@ -1,3 +1,3 @@
 # Advent of code 2020
 
-Written in Erlang.
+Erlang solutions to [Advent of Code 2020](https://adventofcode.com/2020).
